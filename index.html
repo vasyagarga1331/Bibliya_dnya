@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Евангелие дня</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:wght@400;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000; --ink:#FFE9A8; --yellow:#FFC800; --orange:#FF7A00; --amber:#FFB866; --card:#1A1405;
+  color-scheme:dark; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px); background:var(--bg)}
+body{margin:0; background:var(--bg); color:var(--ink); font:18px/1.65 'Literata',Georgia,serif; padding-bottom:40px}
+.wrap{max-width:680px; margin:0 auto; padding:0 18px}
+h1{font:700 1.4rem/1.2 'Playfair Display',Georgia,serif; color:var(--yellow); margin:20px 0 14px}
+.label{font:600 .85rem/1 system-ui,sans-serif; color:var(--amber); margin:0 0 8px}
+.seg{display:flex; gap:8px}
+.seg button{flex:1; min-height:48px; border-radius:12px; border:1.5px solid var(--orange); background:transparent; color:var(--orange); font:600 .95rem system-ui,sans-serif; cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--yellow); border-color:var(--yellow); color:#000}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--yellow); outline-offset:2px}
+.today{margin:40px 0 8px}
+.kicker{font:600 .95rem system-ui,sans-serif; color:var(--amber); margin:0 0 6px}
+.book{font:700 1.6rem/1.25 'Playfair Display',Georgia,serif; color:var(--ink); margin:0}
+.chap{display:flex; align-items:baseline; gap:12px; margin:4px 0 0; color:var(--yellow)}
+.chap b{font:700 clamp(4.5rem,24vw,7rem)/1 'Playfair Display',Georgia,serif}
+.chap span{font:700 1.5rem 'Playfair Display',Georgia,serif}
+h2{font:700 1.2rem/1.3 'Playfair Display',Georgia,serif; color:var(--orange); margin:36px 0 10px}
+.card{background:var(--card); border:1.5px solid var(--orange); border-radius:14px; padding:20px; margin:0; font-size:1.25rem; line-height:1.6}
+.v{margin:0 0 14px}
+.v .l{display:block}
+.v .l+.l{margin-top:3px}
+.v sup{color:var(--orange); font:700 .7rem system-ui,sans-serif; margin-right:4px}
+.ru{color:var(--amber)}
+.card .v{margin:0}
+.who{color:var(--yellow); font:600 .95rem system-ui,sans-serif; margin:14px 0 0}
+details{margin-top:28px}
+summary{list-style:none; cursor:pointer; min-height:52px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:var(--yellow); color:#000; font:600 1.05rem system-ui,sans-serif}
+summary::-webkit-details-marker{display:none}
+details[open] summary{background:transparent; color:var(--orange); border:1.5px solid var(--orange)}
+.text{padding-top:20px}
+.ref{color:var(--amber); font:500 .95rem system-ui,sans-serif; margin:0 0 14px}
+.next{margin:36px 0 0; padding-top:18px; border-top:1px solid #2a2a2a; color:var(--amber)}
+.note{font:.8rem system-ui,sans-serif; color:#8a7a50; text-align:center; margin:28px 0 0}
+#choose{position:fixed; inset:0; z-index:10; background:#000; display:none; flex-direction:column; justify-content:center; gap:12px; padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px)); text-align:center}
+#choose.on{display:flex}
+#choose h2{font-size:1.9rem; color:var(--yellow); margin:0}
+#choose p{margin:0 0 14px; color:var(--amber); font:1rem system-ui,sans-serif}
+#choose button{min-height:56px; border-radius:14px; border:0; background:var(--yellow); color:#000; font:600 1.05rem system-ui,sans-serif; cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Евангелие дня</h1>
+  <p class="label" id="langlabel">Язык чтения</p>
+  <div class="seg" role="group" aria-labelledby="langlabel">
+    <button data-l="cs">Церк.-слав.</button>
+    <button data-l="ru">Русский</button>
+    <button data-l="both">Оба</button>
+  </div>
+  <main id="main"></main>
+  <p class="note">Тексты и календарь чтений пока тестовые.</p>
+</div>
+
+<div id="choose" role="dialog" aria-modal="true" aria-labelledby="ct">
+  <h2 id="ct">Как вам удобнее читать?</h2>
+  <p>Это можно изменить в любой момент.</p>
+  <button data-l="cs">На церковнославянском</button>
+  <button data-l="ru">На русском (синодальный перевод)</button>
+  <button data-l="both">Оба текста вместе</button>
+</div>
+
+<script>
+const BOOKS = { mat:["Мф.","Матфея"], mrk:["Мк.","Марка"], luk:["Лк.","Луки"], jhn:["Ин.","Иоанна"] };
+
+// Календарь чтений: ключ "ГГГГ-ММ-ДД", значение ["книга", глава, стих с, стих по].
+// Пример: "2026-11-05": ["mat", 10, 16, 22]. Сюда встанет настоящий календарь на год.
+const CAL = {};
+
+// Тексты: BIBLE.cs.mat[10][16] = "…". Пока не заполнено, показываются тестовые стихи.
+const BIBLE = { cs:{}, ru:{} };
+
+// Тестовые чтения, чтобы сайт работал в любой день.
+const PLAN = [["mat",12,1,8], ["luk",6,17,23], ["jhn",10,9,16], ["mrk",5,22,24], ["mat",10,16,22]];
+
+const pad = n => String(n).padStart(2,"0");
+const keyOf = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const doyOf = d => Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()) - Date.UTC(d.getFullYear(),0,0)) / 864e5);
+const load = k => { try { return localStorage.getItem(k); } catch(e) { return null; } };
+const save = (k,v) => { try { localStorage.setItem(k,v); } catch(e) {} };
+const readingOf = d => CAL[keyOf(d)] || PLAN[doyOf(d) % PLAN.length];
+
+function verseText(b,ch,v,l){
+  const t = (BIBLE[l][b] || {})[ch];
+  return (t && t[v]) || "["+(l==="cs"?"ЦСЯ":"РУС")+"] Тестовый стих "+BOOKS[b][0]+" "+ch+":"+v;
+}
+const refOf = ([b,ch,f,t]) => BOOKS[b][0]+" "+ch+":"+f+(t>f?"–"+t:"");
+const versesOf = ([b,ch,f,t]) => { const a=[]; for(let v=f; v<=t; v++) a.push({n:v, cs:verseText(b,ch,v,"cs"), ru:verseText(b,ch,v,"ru")}); return a; };
+
+let lang = load("lang");
+if (!["cs","ru","both"].includes(lang)) lang = null;
+
+function para(cs, ru, n){
+  const num = n ? "<sup>"+n+"</sup>" : "";
+  let h = "";
+  if (lang !== "ru") h += '<span class="l">'+num+cs+'</span>';
+  if (lang !== "cs") h += '<span class="l'+(lang==="both"?" ru":"")+'">'+(lang==="ru"?num:"")+ru+'</span>';
+  return '<p class="v">'+h+'</p>';
+}
+
+let shown = "";
+function render(){
+  const d = new Date(), doy = doyOf(d);
+  shown = keyOf(d);
+  const tomorrow = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
+  const R = readingOf(d), T = readingOf(tomorrow);
+  const vs = versesOf(R), vod = vs[doy % vs.length];
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.l === lang)));
+  document.getElementById("choose").classList.toggle("on", !lang);
+  document.getElementById("main").innerHTML =
+    '<section class="today"><p class="kicker">Сегодня читается</p>'
+    + '<p class="book">Евангелие от '+BOOKS[R[0]][1]+'</p>'
+    + '<p class="chap"><b>'+R[1]+'</b><span>глава</span></p></section>'
+    + '<h2>Стих дня</h2><div class="card">'+para(vod.cs,vod.ru)
+    + '<p class="who">'+BOOKS[R[0]][0]+" "+R[1]+":"+vod.n+'</p></div>'
+    + '<details><summary>Читать отрывок</summary><div class="text"><p class="ref">'+refOf(R)+'</p>'
+    + vs.map(v => para(v.cs,v.ru,v.n)).join("")+'</div></details>'
+    + '<p class="next">Завтра читается Евангелие от '+BOOKS[T[0]][1]+', '+T[1]+' глава</p>';
+}
+
+function choose(l){ lang = l; save("lang", l); render(); }
+document.querySelectorAll(".seg button, #choose button").forEach(b => b.addEventListener("click", () => choose(b.dataset.l)));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
+setInterval(() => { if (keyOf(new Date()) !== shown) render(); }, 60000);
+render();
+</script>
+</body>
+</html>
