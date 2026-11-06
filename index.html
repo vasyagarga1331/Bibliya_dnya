@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Евангелие">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Евангелие дня</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +32,9 @@ h1{font:700 1.4rem/1.2 'Playfair Display',Georgia,serif; color:var(--yellow); ma
 .seg button[aria-pressed=true]{background:var(--yellow); border-color:var(--yellow); color:#000}
 button:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--yellow); outline-offset:2px}
 a{color:var(--yellow)}
+[hidden]{display:none!important}
+#install{width:100%; margin-top:12px; min-height:48px; border-radius:12px; border:1.5px solid var(--yellow); background:transparent; color:var(--yellow); font:600 .95rem system-ui,sans-serif; cursor:pointer}
+.hint{margin:12px 0 0; font:.9rem/1.5 system-ui,sans-serif; color:var(--amber)}
 .today{margin:40px 0 8px}
 .kicker{font:600 .95rem/1.4 system-ui,sans-serif; color:var(--amber); margin:0 0 6px}
 .book{font:700 1.6rem/1.25 'Playfair Display',Georgia,serif; color:var(--ink); margin:0}
@@ -68,6 +78,8 @@ details[open] summary{background:transparent; color:var(--orange); border:1.5px 
     <button data-l="ru">Русский</button>
     <button data-l="both">Оба</button>
   </div>
+  <button id="install" hidden>Установить приложение</button>
+  <p class="hint" id="iosHint" hidden>Чтобы установить: нажмите «Поделиться» и выберите «На экран “Домой”».</p>
   <main id="main"></main>
   <p class="note" id="foot"></p>
 </div>
@@ -319,6 +331,21 @@ function choose(l){ lang = l; save("lang", l); render(); }
 document.querySelectorAll(".seg button, #choose button").forEach(b => b.addEventListener("click", () => choose(b.dataset.l)));
 document.addEventListener("visibilitychange", () => { if (!document.hidden && nowDn() !== shown) refresh(); });
 setInterval(() => { if (nowDn() !== shown) refresh(); }, 60000);
+/* ===== Установка как приложения ===== */
+let deferred = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; $("#install").hidden = false; });
+$("#install").addEventListener("click", async () => {
+  if (!deferred) return;
+  deferred.prompt();
+  try { await deferred.userChoice; } catch(e) {}
+  deferred = null; $("#install").hidden = true;
+});
+window.addEventListener("appinstalled", () => { $("#install").hidden = true; });
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+if (isIos && !isStandalone) $("#iosHint").hidden = false;
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+
 refresh();
 </script>
 </body>
